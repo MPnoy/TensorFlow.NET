@@ -8,7 +8,7 @@ namespace Tensorflow.Keras.Layers
 {
     public class StackedRNNCells : Layer, RNNArgs.IRnnArgCell
     {
-        public IList<RnnCell> Cells { get; set; }
+        public IList<RnnCell> cells;
         public bool reverse_state_order;
 
         public StackedRNNCells(StackedRNNCellsArgs args) : base(args)
@@ -18,7 +18,7 @@ namespace Tensorflow.Keras.Layers
                 args.Kwargs = new Dictionary<string, object>();
             }
 
-            Cells = args.Cells;
+            cells = args.Cells;
             reverse_state_order = (bool)args.Kwargs.Get("reverse_state_order", false);
 
             if (reverse_state_order)
@@ -32,31 +32,31 @@ namespace Tensorflow.Keras.Layers
 
         public object state_size
         {
-            get => throw new NotImplementedException();
-            //@property
-            //def state_size(self) :
-            //    return tuple(c.state_size for c in
-            //                 (self.cells[::- 1] if self.reverse_state_order else self.cells))
+            get
+            {
+                var ret = new object[cells.Count];
+
+                for (int i = 0; i < cells.Count; i++)
+                {
+                    var c = cells[reverse_state_order ? cells.Count - 1 - i : i];
+                    ret[i] = c.state_size;
+                }
+
+                return ret;
+            }
         }
 
         public object output_size
         {
             get
             {
-                var lastCell = Cells[Cells.Count - 1];
+                var lastCell = cells[cells.Count - 1];
 
-                if (lastCell.output_size != -1)
-                {
-                    return lastCell.output_size;
-                }
-                else if (RNN._is_multiple_state(lastCell.state_size))
-                {
-                    return ((dynamic)Cells[-1].state_size)[0];
-                }
-                else
-                {
-                    return Cells[-1].state_size;
-                }
+                return lastCell.output_size != -1
+                    ? lastCell.output_size
+                    : RNN._is_multiple_state(lastCell.state_size) 
+                        ? (object)((dynamic)cells[-1].state_size)[0] 
+                        : cells[-1].state_size;
             }
         }
 
